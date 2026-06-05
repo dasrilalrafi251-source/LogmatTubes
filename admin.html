@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — Kelompok 2</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/admin.css">
+</head>
+<body>
+
+<nav>
+  <div class="nav-brand">
+    <div class="nav-dot">
+      <svg viewBox="0 0 24 24"><path d="M12 3L2 9l10 6 10-6-10-6z"/><path d="M2 15l10 6 10-6"/></svg>
+    </div>
+    Kelompok 2
+  </div>
+  <div class="nav-right">
+    <span class="admin-badge">ADMIN</span>
+    <span class="nav-user">Halo, <strong>{{ nama }}</strong></span>
+    <a href="/logout" class="btn-logout">Keluar</a>
+  </div>
+</nav>
+
+<div class="page">
+  <div class="page-top">
+    <div>
+      <div class="page-title">Manajemen Akun</div>
+      <div class="page-desc">Kelola semua akun pengguna platform</div>
+    </div>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+      <div class="flash-msg flash-{{ category }}">{{ message }}</div>
+    {% endfor %}
+  {% endwith %}
+
+  {% set total = accounts|length %}
+  {% set aktif = accounts.values()|selectattr('status','equalto','active')|list|length %}
+  {% set blokir = accounts.values()|selectattr('status','equalto','blocked')|list|length %}
+  {% set expired = accounts.values()|selectattr('status','equalto','expired')|list|length %}
+
+  <div class="stats">
+    <div class="stat-card"><div class="stat-label">Total Akun</div><div class="stat-val blue">{{ total }}</div></div>
+    <div class="stat-card"><div class="stat-label">Aktif</div><div class="stat-val">{{ aktif }}</div></div>
+    <div class="stat-card"><div class="stat-label">Diblokir</div><div class="stat-val red">{{ blokir }}</div></div>
+    <div class="stat-card"><div class="stat-label">Kadaluarsa</div><div class="stat-val orange">{{ expired }}</div></div>
+  </div>
+
+  <div class="table-card">
+    <div class="table-head">Daftar Akun Pengguna</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Pengguna</th>
+          <th>Username</th>
+          <th>Role</th>
+          <th>Status</th>
+          <th>Tgl Kadaluarsa</th>
+          <th>Aksi</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for uname, acc in accounts.items() %}
+        <tr>
+          <td>
+            <div class="user-cell">
+              <div class="avatar">{{ acc.nama[0]|upper }}</div>
+              <div class="user-info">
+                <div class="u-name">{{ acc.nama }}</div>
+              </div>
+            </div>
+          </td>
+          <td><code style="background:#F4F6FB;padding:3px 8px;border-radius:5px;font-size:13px;">{{ acc.username }}</code></td>
+          <td>
+            {% if acc.role == 'admin' %}
+              <span class="role-pill role-admin">Admin</span>
+            {% else %}
+              <span class="role-pill role-user">User</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if acc.status == 'active' %}
+              <span class="status-pill status-active"><span class="status-dot"></span>Aktif</span>
+            {% elif acc.status == 'blocked' %}
+              <span class="status-pill status-blocked"><span class="status-dot"></span>Diblokir</span>
+            {% else %}
+              <span class="status-pill status-expired"><span class="status-dot"></span>Kadaluarsa</span>
+            {% endif %}
+          </td>
+          <td style="color:#9AA3BE;font-size:13px;">{{ acc.expired_date if acc.expired_date else '—' }}</td>
+          <td><a href="/admin/edit/{{ uname }}" class="btn-edit">Edit</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+</body>
+</html>

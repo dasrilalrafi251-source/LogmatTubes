@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Edit Akun — Kelompok 2</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/edit.css">
+</head>
+<body>
+
+<nav>
+  <div class="nav-brand">
+    <div class="nav-dot"><svg viewBox="0 0 24 24"><path d="M12 3L2 9l10 6 10-6-10-6z"/><path d="M2 15l10 6 10-6"/></svg></div>
+    Kelompok 2
+  </div>
+  <div class="nav-right">
+    <span class="admin-badge">ADMIN</span>
+    <a href="/admin" class="btn-back">← Kembali</a>
+  </div>
+</nav>
+
+<div class="page">
+  <div class="breadcrumb">
+    <a href="/admin">Manajemen Akun</a> / Edit Akun
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+      <div class="flash-msg flash-{{ category }}">{{ message }}</div>
+    {% endfor %}
+  {% endwith %}
+
+  <div class="card">
+    <div class="card-top">
+      <div class="avatar-lg">{{ acc.nama[0]|upper }}</div>
+      <div class="card-top-info">
+        <div class="ct-name">{{ acc.nama }}</div>
+        <div class="ct-sub">{{ acc.username }} · Role: {{ acc.role|title }}</div>
+      </div>
+    </div>
+
+    <div class="status-warning">
+      ⚠️ Kosongkan kolom password jika tidak ingin mengubah password. Username harus unik dan tidak boleh sama dengan akun lain.
+    </div>
+
+    <form method="POST">
+      <div class="field">
+        <label>Nama Lengkap</label>
+        <div class="input-wrap">
+          <input type="text" name="nama" value="{{ acc.nama }}" placeholder="Nama lengkap">
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Username Baru <span class="field-hint">(kosongkan jika tidak diubah)</span></label>
+        <div class="input-wrap">
+          <input type="text" name="new_username" placeholder="{{ acc.username }}">
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Password Baru <span class="field-hint">(kosongkan jika tidak diubah)</span></label>
+        <div class="input-wrap">
+          <input type="password" name="new_password" placeholder="••••••••">
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Status Akun</label>
+        <select name="status">
+          <option value="active" {% if acc.status == 'active' %}selected{% endif %}>✅ Aktif</option>
+          <option value="blocked" {% if acc.status == 'blocked' %}selected{% endif %}>🚫 Diblokir</option>
+          <option value="expired" {% if acc.status == 'expired' %}selected{% endif %}>⏰ Kadaluarsa</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Tanggal Kadaluarsa <span class="field-hint">(opsional)</span></label>
+        <div class="input-wrap">
+          <input type="date" name="expired_date" value="{{ acc.expired_date if acc.expired_date else '' }}">
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <a href="/admin" class="btn-cancel">Batal</a>
+        <button type="submit" class="btn-save">Simpan Perubahan</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+</body>
+</html>
