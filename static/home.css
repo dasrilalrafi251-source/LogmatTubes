@@ -126,8 +126,17 @@ nav {
 .welcome-sub {
   font-size: 1.05rem;
   opacity: 0.95;
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
   max-width: 600px;
+}
+
+.member-title {
+  font-size: 1.8rem;
+  font-weight: 700;
+  opacity: 0.98;
+  margin-bottom: 0.8rem;
+  margin-top: 0;
+  padding: 0;
 }
 
 .member-list {
