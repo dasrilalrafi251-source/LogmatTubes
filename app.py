@@ -59,6 +59,42 @@ def count_active_admins():
     """Hitung jumlah admin yang aktif (tidak diblokir)"""
     return sum(1 for acc in ACCOUNTS.values() if acc.get('role') == 'admin' and acc.get('status') == 'active')
 
+def check_login_failure_contrapositive(username, password):
+    """
+    Pembuktian Kontraposisi untuk Login:
+    
+    P: username valid AND password benar AND akun tidak diblokir
+    Q: login berhasil
+    
+    Proposisi Asli: P → Q (Jika P maka Q)
+    Kontraposisi: ¬Q → ¬P (Jika NOT Q maka NOT P)
+    
+    Jika login gagal (¬Q), maka SALAH SATU ini benar (¬P):
+    1. Username tidak valid, ATAU
+    2. Password salah, ATAU  
+    3. Akun diblokir
+    
+    Fungsi ini mengembalikan tuple: (login_failed, error_message)
+    """
+    
+    # Kondisi 1: Username tidak valid (¬username_valid)
+    if username not in ACCOUNTS:
+        return (True, 'Username atau kata sandi salah.')
+    
+    acc = ACCOUNTS[username]
+    
+    # Kondisi 2: Password salah (¬password_correct)
+    if acc['password'] != password:
+        return (True, 'Username atau kata sandi salah.')
+    
+    # Kondisi 3: Akun diblokir (¬account_active)
+    if acc['status'] == 'blocked':
+        return (True, 'Akun Anda telah diblokir. Hubungi administrator.')
+    
+    # Jika semua kondisi negasi SALAH, maka login BERHASIL
+    # (Kontraposisi terbukti: jika tidak ada alasan gagal, maka login berhasil)
+    return (False, None)
+
 @app.route('/', methods=['GET', 'POST'])
 def login():
     if 'username' in session:
@@ -71,22 +107,21 @@ def login():
         username = request.form.get('username', '').strip()
         password = request.form.get('password', '').strip()
 
-        if username in ACCOUNTS:
-            acc = ACCOUNTS[username]
-            if acc['password'] == password:
-                if acc['status'] == 'blocked':
-                    error = 'Akun Anda telah diblokir. Hubungi administrator.'
-                else:
-                    session['username'] = username
-                    session['role'] = acc['role']
-                    session['nama'] = acc['nama']
-                    if acc['role'] == 'admin':
-                        return redirect(url_for('admin_dashboard'))
-                    return redirect(url_for('home'))
-            else:
-                error = 'Username atau kata sandi salah.'
+        # Gunakan logika kontraposisi untuk verifikasi login
+        login_failed, error_msg = check_login_failure_contrapositive(username, password)
+        
+        if login_failed:
+            # Login gagal: salah satu kondisi negasi terpenuhi
+            error = error_msg
         else:
-            error = 'Username atau kata sandi salah.'
+            # Login berhasil: tidak ada alasan gagal (kontraposisi terbukti)
+            acc = ACCOUNTS[username]
+            session['username'] = username
+            session['role'] = acc['role']
+            session['nama'] = acc['nama']
+            if acc['role'] == 'admin':
+                return redirect(url_for('admin_dashboard'))
+            return redirect(url_for('home'))
 
     return render_template('login.html', error=error)
 
