@@ -40,13 +40,11 @@
   {% set total = accounts|length %}
   {% set aktif = accounts.values()|selectattr('status','equalto','active')|list|length %}
   {% set blokir = accounts.values()|selectattr('status','equalto','blocked')|list|length %}
-  {% set expired = accounts.values()|selectattr('status','equalto','expired')|list|length %}
 
   <div class="stats">
     <div class="stat-card"><div class="stat-label">Total Akun</div><div class="stat-val blue">{{ total }}</div></div>
     <div class="stat-card"><div class="stat-label">Aktif</div><div class="stat-val">{{ aktif }}</div></div>
     <div class="stat-card"><div class="stat-label">Diblokir</div><div class="stat-val red">{{ blokir }}</div></div>
-    <div class="stat-card"><div class="stat-label">Kadaluarsa</div><div class="stat-val orange">{{ expired }}</div></div>
   </div>
 
   <div class="table-card">
@@ -58,7 +56,6 @@
           <th>Username</th>
           <th>Role</th>
           <th>Status</th>
-          <th>Tgl Kadaluarsa</th>
           <th>Aksi</th>
         </tr>
       </thead>
@@ -84,14 +81,18 @@
           <td>
             {% if acc.status == 'active' %}
               <span class="status-pill status-active"><span class="status-dot"></span>Aktif</span>
-            {% elif acc.status == 'blocked' %}
-              <span class="status-pill status-blocked"><span class="status-dot"></span>Diblokir</span>
             {% else %}
-              <span class="status-pill status-expired"><span class="status-dot"></span>Kadaluarsa</span>
+              <span class="status-pill status-blocked"><span class="status-dot"></span>Diblokir</span>
             {% endif %}
           </td>
-          <td style="color:#9AA3BE;font-size:13px;">{{ acc.expired_date if acc.expired_date else '—' }}</td>
-          <td><a href="/admin/edit/{{ uname }}" class="btn-edit">Edit</a></td>
+          <td style="display:flex;gap:8px;align-items:center;">
+            <a href="/admin/edit/{{ uname }}" class="btn-edit">Edit</a>
+            {% if uname != session.get('username') %}
+              <form method="POST" action="/admin/delete/{{ uname }}" style="display:inline;" onsubmit="return confirm('Apakah Anda yakin ingin menghapus akun {{ acc.nama }}? Tindakan ini tidak dapat dibatalkan.');">
+                <button type="submit" class="btn-delete" style="background-color:#d32f2f;color:white;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;font-size:12px;font-weight:500;">Hapus</button>
+              </form>
+            {% endif %}
+          </td>
         </tr>
         {% endfor %}
       </tbody>

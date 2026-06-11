@@ -1,5 +1,4 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash
-from datetime import datetime, date
 from functools import wraps
 
 app = Flask(__name__, template_folder='.')
@@ -11,25 +10,22 @@ ACCOUNTS = {
         'username': 'admin',
         'password': 'admin123',
         'role': 'admin',
-        'status': 'active',       # active | blocked | expired
+        'status': 'active',       # active | blocked
         'nama': 'Administrator',
-        'expired_date': None,
     },
     'user1': {
         'username': 'user1',
         'password': 'user123',
         'role': 'user',
         'status': 'active',
-        'nama': 'Pria SOLO',
-        'expired_date': None,
+        'nama': 'OSLO',
     },
     'user2': {
         'username': 'user2',
         'password': 'user456',
         'role': 'user',
         'status': 'active',
-        'nama': 'Pria Antek Antek Asing',
-        'expired_date': None,
+        'nama': 'Pria Gemoy',
     },
     'userblokir': {
         'username': 'userblokir',
@@ -37,40 +33,8 @@ ACCOUNTS = {
         'role': 'user',
         'status': 'blocked',
         'nama': 'Joko Terblokir',
-        'expired_date': None,
-    },
-    'userkadaluarsa': {
-        'username': 'userkadaluarsa',
-        'password': 'expired123',
-        'role': 'user',
-        'status': 'expired',
-        'nama': 'Udin Kadaluarsa',
-        'expired_date': '2023-01-01',
     },
 }
-
-def update_expiry_for_account(acc):
-    """Periksa `expired_date` pada akun dan:
-    - jika `expired_date` < hari ini -> set `status = 'expired'` (kecuali akun diblokir)
-    - jika `expired_date` >= hari ini dan status saat ini 'expired' -> set `status = 'active'`
-    """
-    exp = acc.get('expired_date')
-    if not exp:
-        return
-    try:
-        exp_date = datetime.strptime(exp, '%Y-%m-%d').date()
-    except Exception:
-        return
-    today = date.today()
-    if exp_date < today:
-        # jangan ubah status jika akun diblokir secara manual
-        if acc.get('status') != 'blocked':
-            acc['status'] = 'expired'
-    else:
-        # expired_date >= today -> jika sebelumnya 'expired', aktifkan kembali
-        if acc.get('status') == 'expired':
-            acc['status'] = 'active'
-
 
 def login_required(f):
     @wraps(f)
@@ -91,6 +55,10 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated
 
+def count_active_admins():
+    """Hitung jumlah admin yang aktif (tidak diblokir)"""
+    return sum(1 for acc in ACCOUNTS.values() if acc.get('role') == 'admin' and acc.get('status') == 'active')
+
 @app.route('/', methods=['GET', 'POST'])
 def login():
     if 'username' in session:
@@ -105,13 +73,9 @@ def login():
 
         if username in ACCOUNTS:
             acc = ACCOUNTS[username]
-            # update status jika sudah melewati tanggal kadaluarsa
-            update_expiry_for_account(acc)
             if acc['password'] == password:
                 if acc['status'] == 'blocked':
                     error = 'Akun Anda telah diblokir. Hubungi administrator.'
-                elif acc['status'] == 'expired':
-                    error = 'Akun Anda telah kadaluarsa. Hubungi administrator.'
                 else:
                     session['username'] = username
                     session['role'] = acc['role']
@@ -134,9 +98,6 @@ def home():
 @app.route('/admin')
 @admin_required
 def admin_dashboard():
-    # pastikan semua akun yang memiliki expired_date diperbarui sebelum ditampilkan
-    for a in ACCOUNTS.values():
-        update_expiry_for_account(a)
     return render_template('admin.html', accounts=ACCOUNTS, nama=session.get('nama'))
 
 @app.route('/admin/edit/<username>', methods=['GET', 'POST'])
@@ -147,17 +108,30 @@ def edit_account(username):
         return redirect(url_for('admin_dashboard'))
 
     acc = ACCOUNTS[username]
+    current_admin = session.get('username')
+    
     if request.method == 'POST':
         new_username = request.form.get('new_username', '').strip()
         new_password = request.form.get('new_password', '').strip()
         new_status = request.form.get('status', '').strip()
         new_nama = request.form.get('nama', '').strip()
-        new_expired = request.form.get('expired_date', '').strip()
+
+        # Validasi: Admin tidak bisa memblokir dirinya sendiri
+        if new_status == 'blocked' and username == current_admin:
+            flash('Anda tidak dapat memblokir akun Anda sendiri.', 'error')
+            return render_template('edit.html', acc=acc, username=username, current_admin=current_admin)
+        
+        # Validasi: Admin hanya bisa memblokir admin lain jika ada minimal 2 admin lain yang aktif
+        if new_status == 'blocked' and acc.get('role') == 'admin' and username != current_admin:
+            active_admins = count_active_admins()
+            if active_admins < 3:  # Termasuk current_admin
+                flash(f'Tidak bisa memblokir admin lain. Harus ada minimal 2 admin aktif lainnya. Saat ini ada {active_admins} admin aktif.', 'error')
+                return render_template('edit.html', acc=acc, username=username, current_admin=current_admin)
 
         if new_username and new_username != username:
             if new_username in ACCOUNTS:
                 flash('Username sudah digunakan.', 'error')
-                return render_template('edit.html', acc=acc, username=username)
+                return render_template('edit.html', acc=acc, username=username, current_admin=current_admin)
             ACCOUNTS[new_username] = ACCOUNTS.pop(username)
             ACCOUNTS[new_username]['username'] = new_username
             username = new_username
@@ -168,12 +142,38 @@ def edit_account(username):
             ACCOUNTS[username]['status'] = new_status
         if new_nama:
             ACCOUNTS[username]['nama'] = new_nama
-        ACCOUNTS[username]['expired_date'] = new_expired if new_expired else None
 
         flash(f'Akun "{username}" berhasil diperbarui.', 'success')
         return redirect(url_for('admin_dashboard'))
 
-    return render_template('edit.html', acc=acc, username=username)
+    return render_template('edit.html', acc=acc, username=username, current_admin=current_admin)
+
+@app.route('/admin/delete/<username>', methods=['POST'])
+@admin_required
+def delete_account(username):
+    if username not in ACCOUNTS:
+        flash('Akun tidak ditemukan.', 'error')
+        return redirect(url_for('admin_dashboard'))
+    
+    current_admin = session.get('username')
+    acc = ACCOUNTS[username]
+    
+    # Validasi: Admin tidak bisa menghapus dirinya sendiri
+    if username == current_admin:
+        flash('Anda tidak dapat menghapus akun Anda sendiri.', 'error')
+        return redirect(url_for('admin_dashboard'))
+    
+    # Validasi: Admin hanya bisa hapus admin lain jika ada minimal 2 admin lain yang aktif
+    if acc.get('role') == 'admin':
+        active_admins = count_active_admins()
+        if active_admins < 3:  # Termasuk current_admin
+            flash(f'Tidak bisa menghapus admin lain. Harus ada minimal 2 admin aktif lainnya. Saat ini ada {active_admins} admin aktif.', 'error')
+            return redirect(url_for('admin_dashboard'))
+    
+    nama_akun = acc.get('nama')
+    del ACCOUNTS[username]
+    flash(f'Akun "{nama_akun}" ({username}) berhasil dihapus.', 'success')
+    return redirect(url_for('admin_dashboard'))
 
 @app.route('/logout')
 def logout():
